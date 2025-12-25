@@ -1,0 +1,132 @@
+doas addgroup -S vmail
+doas adduser -h /home/vmail -s /bin/false -G vmail -S -D vmail
+
+doas addgroup -S iroh
+doas adduser -s /bin/false -G iroh -S -D -H iroh
+
+doas apk add python3 py3-virtualenv
+doas python3 -m venv /opt/chatmaild
+
+mkdir ~/cm
+cd ~/cm
+
+:: on host
+  git clone https://github.com/chatmail/relay.git
+  cd relay
+  docker run -it --rm -v ./:/src alpine:latest sh -c 'apk add python3 py3-pip gcc musl-dev python3-dev && pip wheel -w /src/dist /src/chatmaild'
+  scp -P 8022 ./dist/*.whl chat.example.com:/home/user/cm
+  cd ..
+
+doas /opt/chatmaild/bin/pip install ./*.whl
+rm ./*.whl
+
+:: on host
+  git clone https://git.dc09.xyz/chatmail/openrc.git
+  cd openrc
+  vim chatmail-turn  # replace domain in --realm
+  scp -P 8022 ./* chat.example.com:/home/user/cm
+  cd ..
+
+doas crontab -l >cron.bkp
+cat cron.bkp crontab | doas crontab -
+rm cron.bkp crontab
+
+doas chown root: ./*
+doas chmod 755 ./*
+doas mv ./* /etc/init.d
+
+curl -L -o ./chatmail-turn 'https://github.com/chatmail/chatmail-turn/releases/download/v0.3/chatmail-turn-x86_64-linux'
+echo '841e527c15fdc2940b0469e206188ea8f0af48533be12ecb8098520f813d41e4 chatmail-turn' | sha256sum -c
+doas chown root: chatmail-turn
+doas chmod 755 chatmail-turn
+doas mv chatmail-turn /usr/local/bin/
+
+curl -L -o iroh.tar.gz 'https://github.com/n0-computer/iroh/releases/download/v0.35.0/iroh-relay-v0.35.0-x86_64-unknown-linux-musl.tar.gz'
+tar xzf iroh.tar.gz
+rm iroh.tar.gz
+echo '45c81199dbd70f8c4c30fef7f3b9727ca6e3cea8f2831333eeaf8aa71bf0fac1 iroh-relay' | sha256sum -c
+doas chown root: iroh-relay
+doas chmod 755 iroh-relay
+doas mv iroh-relay /usr/local/bin/
+
+:: on host
+  cd relay
+  python -m venv venv
+  venv/bin/pip install -e ./chatmaild -e ./cmdeploy
+  venv/bin/cmdeploy init chat.example.com
+  vim chatmail.ini
+  scp -P 8022 \
+    ./chatmail.ini \
+    ./cmdeploy/src/cmdeploy/iroh-relay.toml \
+    ./cmdeploy/src/cmdeploy/opendkim/*.lua \
+    chat.example.com:/home/user/cm
+
+echo 'chat.example.com' | doas tee /etc/mailname
+
+doas chown root: chatmail.ini iroh-relay.toml
+doas mv chatmail.ini iroh-relay.toml /etc/
+
+doas apk add opendkim opendkim-utils dnssec-root
+doas apk add postfix
+
+doas vim /etc/opendkim/opendkim.conf
+:: put the contents adjusting domain (1 time)
+```
+Syslog yes
+SyslogSuccess yes
+LogWhy no
+
+Canonicalization relaxed/simple
+OversignHeaders from,reply-to,subject,date,to,cc,resent-date,resent-from,resent-sender,resent-to,resent-cc,in-reply-to,references,list-id,list-help,list-unsubscribe,list-subscribe,list-post,list-owner,list-archive,autocrypt
+SignHeaders *,+autocrypt,+content-type
+
+On-BadSignature reject
+On-KeyNotFound reject
+On-NoSignature reject
+DNSTimeout 60
+
+Domain chat.example.com  # <-- CHANGE TO YOUR DOMAIN
+Selector opendkim
+KeyFile /etc/dkimkeys/opendkim.private
+KeyTable /etc/dkimkeys/KeyTable
+SigningTable refile:/etc/dkimkeys/SigningTable
+
+ScreenPolicyScript /etc/opendkim/screen.lua
+FinalPolicyScript /etc/opendkim/final.lua
+
+UserID opendkim
+UMask 007
+Socket local:/var/spool/postfix/opendkim/opendkim.sock
+PidFile /run/opendkim/opendkim.pid
+
+TrustAnchorFile /usr/share/dnssec-root/trusted-key.key
+
+MTA ORIGINATING
+InternalHosts -
+```
+
+doas chown root: *.lua
+doas mv screen.lua final.lua /etc/opendkim/
+doas mkdir /etc/dkimkeys
+
+doas vim /etc/dkimkeys/KeyTable
+:: put the contents adjusting domain (2 times)
+```
+opendkim._domainkey.chat.example.com chat.example.com:opendkim:/etc/dkimkeys/opendkim.private
+```
+
+doas vim /etc/dkimkeys/SigningTable
+:: put the contents adjusting domain (2 times)
+```
+*@chat.example.com opendkim._domainkey.chat.example.com
+```
+
+doas chown opendkim: /etc/opendkim
+doas chown -R opendkim: /etc/dkimkeys
+doas chmod 750 /etc/opendkim /etc/dkimkeys
+
+doas -u opendkim opendkim-genkey -D /etc/dkimkeys -d chat.example.com -s opendkim
+
+doas mkdir /var/spool/postfix/opendkim
+doas chown opendkim: /var/spool/postfix/opendkim
+doas chmod 750 /var/spool/postfix/opendkim
