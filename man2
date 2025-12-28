@@ -60,6 +60,7 @@ doas mv iroh-relay /usr/local/bin/
     ./cmdeploy/src/cmdeploy/iroh-relay.toml \
     ./cmdeploy/src/cmdeploy/opendkim/*.lua \
     chat.example.com:/home/user/cm
+  cd ..
 
 echo 'chat.example.com' | doas tee /etc/mailname
 
@@ -347,4 +348,24 @@ Po+aiDwvA8BlNDSpGp7gGztghuo9oljiUPHlM/evV4wI8/sPUNrZIc5d1gHJZDtB
 PN9RcPA8+JhYzlxuifjVyLiyopR6kxjrn5HOMuQ3ZUaZjoHRPrRNNTv5Drr0zKr0
 eEzshgR6e3LDFUB1QRC1Xg1ZGq2SwL2l+lqsJMSMnKH8jO8WBTjujS8CAQICAgFF
 -----END DH PARAMETERS-----
+```
+
+:: on host
+  cd relay
+  scp -P 8022 \
+    ./cmdeploy/src/cmdeploy/dovecot/auth.conf \
+    ./cmdeploy/src/cmdeploy/dovecot/push_notification.lua \
+    chat.example.com:/home/user/cm
+  cd ..
+
+doas chown root: auth.conf push_notification.lua
+doas mv auth.conf push_notification.lua /etc/dovecot
+
+doas sysctl -w fs.inotify.max_user_instances=65535
+doas sysctl -w fs.inotify.max_user_watches=65535
+doas vim /etc/sysctl.d/inotify.conf
+::
+```
+fs.inotify.max_user_instances = 65535
+fs.inotify.max_user_watches = 65535
 ```
