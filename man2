@@ -666,3 +666,25 @@ http {
   }
 }
 ```
+
+doas rc-update add nginx
+doas service nginx checkconfig
+doas service nginx start
+
+doas python3 -m venv /opt/certbot
+doas /opt/certbot/bin/pip install certbot certbot-nginx
+
+doas /opt/certbot/bin/certbot certonly --nginx
+
+doas vim /etc/nginx/nginx.conf
+:: ensure tls certs location is correct,
+   enable tls by uncommenting cert/key path (find comment "UNCOMMENT AFTER")
+   and adding `ssl` option to listen 8443 (find 2 comments "REPLACE AFTER")
+
+doas service nginx checkconfig
+doas service nginx restart
+
+doas crontab -l >cron.bkp
+echo '2 1  * * * /opt/certbot/bin/certbot renew &>/var/log/renew.log' >cron.add
+cat cron.bkp cron.add | doas crontab -
+rm cron.bkp cron.add
