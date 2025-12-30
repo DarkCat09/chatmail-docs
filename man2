@@ -546,3 +546,123 @@ authclean unix  n       -       -       -       0       cleanup
 doas chown root: submission_header_cleanup login_map
 doas mv submission_header_cleanup login_map /etc/postfix/
 doas addgroup postfix opendkim
+
+doas apk add nginx nginx-mod-stream fcgiwrap
+
+doas vim /etc/nginx/nginx.conf
+:: put the contents adjusting domain (6 lines)
+   and tls certs location
+```
+load_module modules/ngx_stream_module.so;
+
+user nginx;
+worker_processes auto;
+pcre_jit on;
+
+error_log /var/log/nginx/error.log warn;
+
+worker_rlimit_nofile 2048;
+events {
+  worker_connections 2048;
+}
+
+stream {
+  map $ssl_preread_alpn_protocols $proxy {
+    default 127.0.0.1:8443;
+    ~\bsmtp\b 127.0.0.1:465;
+    ~\bimap\b 127.0.0.1:993;
+  }
+
+  server {
+    listen 443;
+    listen [::]:443;
+    ssl_preread on;
+    proxy_pass $proxy;
+  }
+}
+
+http {
+  include /etc/nginx/mime.types;
+  default_type application/octet-stream;
+
+  server_tokens off;
+
+  sendfile on;
+  tcp_nopush on;
+
+  gzip on;
+
+  ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3;
+  ssl_prefer_server_ciphers on;
+  # UNCOMMENT AFTER SETTING UP CERTBOT
+  #ssl_certificate /etc/letsencrypt/live/chat.example.com/fullchain.pem;    # <-- HERE
+  #ssl_certificate_key /etc/letsencrypt/live/chat.example.com/privkey.pem;  # <-- HERE
+
+  server {
+    listen 80;
+    listen [::]:80;
+    server_name chat.example.com www.chat.example.com mta-sts.chat.example.com;  # <-- HERE
+    location / {
+      return 301 https://$host$request_uri;
+    }
+  }
+
+  server {
+    # REPLACE AFTER SETTING UP CERTBOT
+    #listen 127.0.0.1:8443 ssl default_server;
+    listen 127.0.0.1:8443 default_server;
+
+    server_name chat.example.com mta-sts.chat.example.com;  # <-- HERE
+    root /var/www/html;
+    index index.html;
+
+    location / {
+      try_files $uri $uri/ =404;
+    }
+
+    location /new {
+      if ($request_method = GET) {
+        return 301 dcaccount:https://chat.example.com/new;  # <-- HERE
+      }
+      fastcgi_pass unix:/run/fcgiwrap/fcgiwrap.sock;
+      include /etc/nginx/fastcgi_params;
+      fastcgi_param SCRIPT_FILENAME /usr/lib/cgi-bin/newemail.py;
+    }
+
+    location /cgi-bin/newemail.py {
+      if ($request_method = GET) {
+        return 301 dcaccount:https://chat.example.com/new;  # <-- HERE
+      }
+      fastcgi_pass unix:/run/fcgiwrap/fcgiwrap.sock;
+      include /etc/nginx/fastcgi_params;
+      fastcgi_param SCRIPT_FILENAME /usr/lib/cgi-bin/newemail.py;
+    }
+
+    location /relay {
+      proxy_pass http://127.0.0.1:3340;
+      proxy_http_version 1.1;
+      proxy_set_header Connection "upgrade";
+      proxy_set_header Upgrade $http_upgrade;
+    }
+
+    location /relay/probe {
+      proxy_pass http://127.0.0.1:3340;
+      proxy_http_version 1.1;
+    }
+
+    location /generate_204 {
+      proxy_pass http://127.0.0.1:3340;
+      proxy_http_version 1.1;
+    }
+  }
+
+  server {
+    # REPLACE AFTER SETTING UP CERTBOT
+    #listen 127.0.0.1:8443 ssl;
+    listen 127.0.0.1:8443;
+
+    server_name www.chat.example.com;  # <-- HERE
+    return 301 https://chat.example.com$request_uri;  # <-- HERE
+  }
+}
+```
