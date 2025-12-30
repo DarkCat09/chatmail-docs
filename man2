@@ -369,3 +369,180 @@ doas vim /etc/sysctl.d/inotify.conf
 fs.inotify.max_user_instances = 65535
 fs.inotify.max_user_watches = 65535
 ```
+
+doas vim /etc/postfix/main.cf
+:: put the contents adjusting domain (3 times),
+   tls certs location and msg size quota
+```
+compatibility_level = 3.6
+
+myorigin = chat.example.com  # <-- HERE
+smtpd_banner = $myhostname ESMTP $mail_name
+biff = no
+readme_directory = no
+
+append_dot_mydomain = no
+
+# Uncomment the next line to generate "delayed mail" warnings
+#delay_warning_time = 4h
+
+# TLS parameters
+smtpd_tls_cert_file=/etc/letsencrypt/live/chat.example.com/fullchain.pem  # <-- HERE
+smtpd_tls_key_file=/etc/letsencrypt/live/chat.example.com/privkey.pem     # <-- HERE
+smtpd_tls_security_level=may
+
+smtp_tls_CApath=/etc/ssl/certs
+smtp_tls_security_level=verify
+# Send SNI when connecting to other servers
+smtp_tls_servername = hostname
+smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
+smtp_tls_policy_maps = inline:{nauta.cu=may}
+smtp_tls_protocols = >=TLSv1.2
+smtp_tls_mandatory_protocols = >=TLSv1.2
+# Disable anonymous cipher suites and known insecure algorithms
+smtpd_tls_exclude_ciphers = aNULL, RC4, MD5, DES
+# Override client's preference order
+tls_preempt_cipherlist = yes
+
+smtpd_relay_restrictions = permit_mynetworks permit_sasl_authenticated defer_unauth_destination
+
+myhostname = chat.example.com  # <-- HERE
+alias_maps = hash:/etc/aliases
+alias_database = hash:/etc/aliases
+
+mydestination =
+relayhost =
+mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
+mailbox_size_limit = 0
+message_size_limit = 31457280  # <-- max_message_size in chatmail.ini
+recipient_delimiter = +
+inet_interfaces = all
+inet_protocols = all
+
+virtual_transport = lmtp:unix:private/dovecot-lmtp
+virtual_mailbox_domains = chat.example.com  # <-- HERE
+
+mua_client_restrictions = permit_sasl_authenticated, reject
+mua_sender_restrictions = reject_sender_login_mismatch, permit_sasl_authenticated, reject
+mua_helo_restrictions = permit_mynetworks, reject_invalid_helo_hostname, reject_non_fqdn_helo_hostname, permit
+
+# 1:1 map MAIL FROM to SASL login name
+smtpd_sender_login_maps = regexp:/etc/postfix/login_map
+
+# Do not lookup SMTP client hostnames to reduce delays
+# and avoid unnecessary DNS requests
+smtpd_peername_lookup = no
+```
+
+doas vim /etc/postfix/master.cf
+:: put the contents
+```
+# ==========================================================================
+# service type  private unpriv  chroot  wakeup  maxproc command + args
+#               (yes)   (yes)   (no)    (never) (100)
+# ==========================================================================
+smtp      inet  n       -       y       -       -       smtpd 
+  -o smtpd_tls_security_level=encrypt
+  -o smtpd_tls_mandatory_protocols=>=TLSv1.2
+  -o smtpd_proxy_filter=127.0.0.1:10081  # <-- filtermail_smtp_port_incoming
+submission inet n       -       y       -       5000    smtpd
+  -o syslog_name=postfix/submission
+  -o smtpd_tls_security_level=encrypt
+  -o smtpd_tls_mandatory_protocols=>=TLSv1.3
+  -o smtpd_sasl_auth_enable=yes
+  -o smtpd_sasl_type=dovecot
+  -o smtpd_sasl_path=private/auth
+  -o smtpd_tls_auth_only=yes
+  -o smtpd_reject_unlisted_recipient=no
+  -o smtpd_client_restrictions=$mua_client_restrictions
+  -o smtpd_helo_restrictions=$mua_helo_restrictions
+  -o smtpd_sender_restrictions=$mua_sender_restrictions
+  -o smtpd_recipient_restrictions=
+  -o smtpd_relay_restrictions=permit_sasl_authenticated,reject
+  -o smtpd_client_connection_count_limit=1000
+  -o smtpd_proxy_filter=127.0.0.1:10080  # <-- filtermail_smtp_port in chatmail.ini
+smtps     inet  n       -       y       -       5000    smtpd
+  -o syslog_name=postfix/smtps
+  -o smtpd_tls_wrappermode=yes
+  -o smtpd_tls_security_level=encrypt
+  -o smtpd_tls_mandatory_protocols=>=TLSv1.3
+  -o smtpd_sasl_auth_enable=yes
+  -o smtpd_sasl_type=dovecot
+  -o smtpd_sasl_path=private/auth
+  -o smtpd_reject_unlisted_recipient=no
+  -o smtpd_client_restrictions=$mua_client_restrictions
+  -o smtpd_helo_restrictions=$mua_helo_restrictions
+  -o smtpd_sender_restrictions=$mua_sender_restrictions
+  -o smtpd_recipient_restrictions=
+  -o smtpd_relay_restrictions=permit_sasl_authenticated,reject
+  -o smtpd_client_connection_count_limit=1000
+  -o smtpd_proxy_filter=127.0.0.1:10080  # <-- filtermail_smtp_port
+
+#628       inet  n       -       y       -       -       qmqpd
+pickup    unix  n       -       y       60      1       pickup
+cleanup   unix  n       -       y       -       0       cleanup
+qmgr      unix  n       -       n       300     1       qmgr
+#qmgr     unix  n       -       n       300     1       oqmgr
+tlsmgr    unix  -       -       y       1000?   1       tlsmgr
+rewrite   unix  -       -       y       -       -       trivial-rewrite
+bounce    unix  -       -       y       -       0       bounce
+defer     unix  -       -       y       -       0       bounce
+trace     unix  -       -       y       -       0       bounce
+verify    unix  -       -       y       -       1       verify
+flush     unix  n       -       y       1000?   0       flush
+proxymap  unix  -       -       n       -       -       proxymap
+proxywrite unix -       -       n       -       1       proxymap
+smtp      unix  -       -       y       -       -       smtp
+relay     unix  -       -       y       -       -       smtp
+        -o syslog_name=postfix/$service_name
+#       -o smtp_helo_timeout=5 -o smtp_connect_timeout=5
+showq     unix  n       -       y       -       -       showq
+error     unix  -       -       y       -       -       error
+retry     unix  -       -       y       -       -       error
+discard   unix  -       -       y       -       -       discard
+lmtp      unix  -       -       y       -       -       lmtp
+anvil     unix  -       -       y       -       1       anvil
+scache    unix  -       -       y       -       1       scache
+postlog   unix-dgram n  -       n       -       1       postlogd
+filter    unix -        n       n       -       -       lmtp
+
+# Local SMTP server for reinjecting outgoing filtered mail
+# 10025 is postfix_reinject_port in chatmail.ini
+127.0.0.1:10025 inet  n       -       n       -       100      smtpd
+  -o syslog_name=postfix/reinject
+  -o milter_macro_daemon_name=ORIGINATING
+  -o smtpd_milters=unix:opendkim/opendkim.sock
+  -o cleanup_service_name=authclean
+
+# Local SMTP server for reinjecting incoming filtered mail
+# 10026 is postfix_reinject_port_incoming
+127.0.0.1:10026 inet  n       -       n       -       100      smtpd
+  -o syslog_name=postfix/reinject_incoming
+  -o smtpd_milters=unix:opendkim/opendkim.sock
+
+# Cleanup `Received` headers for authenticated mail
+# to avoid leaking client IP
+#
+# We do not do this for received mails
+# as this will break DKIM signatures
+# if `Received` header is signed
+#
+# This service also rewrites
+# Subject with `[...]`
+# to make sure the users
+# cannot send unprotected Subject
+authclean unix  n       -       -       -       0       cleanup
+  -o header_checks=regexp:/etc/postfix/submission_header_cleanup
+```
+
+:: on host
+  cd relay
+  scp -P 8022 \
+    ./cmdeploy/src/cmdeploy/postfix/submission_header_cleanup \
+    ./cmdeploy/src/cmdeploy/postfix/login_map \
+    chat.example.com:/home/user/cm
+  cd ..
+
+doas chown root: submission_header_cleanup login_map
+doas mv submission_header_cleanup login_map /etc/postfix/
+doas addgroup postfix opendkim
