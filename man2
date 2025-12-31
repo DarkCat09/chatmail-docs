@@ -40,6 +40,7 @@ echo '841e527c15fdc2940b0469e206188ea8f0af48533be12ecb8098520f813d41e4 chatmail-
 doas chown root: chatmail-turn
 doas chmod 755 chatmail-turn
 doas mv chatmail-turn /usr/local/bin/
+doas rc-update add chatmail-turn
 
 curl -L -o iroh.tar.gz 'https://github.com/n0-computer/iroh/releases/download/v0.35.0/iroh-relay-v0.35.0-x86_64-unknown-linux-musl.tar.gz'
 tar xzf iroh.tar.gz
@@ -48,6 +49,7 @@ echo '45c81199dbd70f8c4c30fef7f3b9727ca6e3cea8f2831333eeaf8aa71bf0fac1 iroh-rela
 doas chown root: iroh-relay
 doas chmod 755 iroh-relay
 doas mv iroh-relay /usr/local/bin/
+doas rc-update add iroh-relay
 
 :: on host
   cd relay
@@ -131,6 +133,8 @@ doas -u opendkim opendkim-genkey -D /etc/dkimkeys -d chat.example.com -s opendki
 doas mkdir /var/spool/postfix/opendkim
 doas chown opendkim: /var/spool/postfix/opendkim
 doas chmod 750 /var/spool/postfix/opendkim
+
+doas rc-update add opendkim
 
 cd /etc/apk/keys
 doas curl -JO https://git.dc09.xyz/api/packages/chatmail/alpine/key
@@ -370,6 +374,8 @@ fs.inotify.max_user_instances = 65535
 fs.inotify.max_user_watches = 65535
 ```
 
+for svc in dovecot doveauth chatmail-metadata lastlogin; do doas rc-update add "$svc"; done
+
 doas vim /etc/postfix/main.cf
 :: put the contents adjusting domain (3 times),
    tls certs location and msg size quota
@@ -547,6 +553,8 @@ doas chown root: submission_header_cleanup login_map
 doas mv submission_header_cleanup login_map /etc/postfix/
 doas addgroup postfix opendkim
 
+for svc in postfix filtermail filtermail-incoming; do doas rc-update add "$svc"; done
+
 doas apk add nginx nginx-mod-stream
 doas apk add newemail@chatmail
 
@@ -657,6 +665,8 @@ http {
   }
 }
 ```
+
+doas rc-update add newemail
 
 doas rc-update add nginx
 doas service nginx checkconfig
