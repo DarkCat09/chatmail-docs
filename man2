@@ -705,12 +705,11 @@ doas chmod 750 /etc/letsencrypt/renewal-hooks/deploy/reload.sh
 
 :: on host
   cd relay
-  venv/bin/cmdeploy webdev
-  <Ctrl+C> after it built pages and opened browser
+  venv/bin/python -c 'from chatmaild import config; from cmdeploy import www; from pathlib import Path; www.build_webpages(Path("www/src"), Path("www/build"), config.read_config("chatmail.ini"))'
   cd www/build
   tar cf site.tar ./*
   scp -P 8022 ./site.tar chat.example.com:/home/user/cm
-  cd ..
+  cd ../../..
 
 doas mkdir -p /var/www/html
 doas tar xf site.tar -C /var/www/html --no-same-owner --no-same-permissions
