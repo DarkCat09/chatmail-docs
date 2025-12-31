@@ -69,7 +69,13 @@ echo 'chat.example.com' | doas tee /etc/mailname
 doas chown root: chatmail.ini iroh-relay.toml
 doas mv chatmail.ini iroh-relay.toml /etc/
 
-doas apk add opendkim opendkim-utils dnssec-root
+cd /etc/apk/keys
+doas curl -JO https://git.dc09.xyz/api/packages/chatmail/alpine/key
+echo '@chatmail https://git.dc09.xyz/api/packages/chatmail/alpine/3.23/chatmail' | doas tee -a /etc/apk/repositories
+cd ~/cm
+
+doas apk add opendkim@chatmail opendkim-libs@chatmail opendkim-utils@chatmail
+doas apk add dnssec-root
 doas apk add postfix
 
 doas vim /etc/opendkim/opendkim.conf
@@ -136,11 +142,7 @@ doas chmod 750 /var/spool/postfix/opendkim
 
 doas rc-update add opendkim
 
-cd /etc/apk/keys
-doas curl -JO https://git.dc09.xyz/api/packages/chatmail/alpine/key
-echo '@chatmail https://git.dc09.xyz/api/packages/chatmail/alpine/3.23/chatmail' | doas tee -a /etc/apk/repositories
 doas apk add dovecot@chatmail dovecot-openrc@chatmail dovecot-lmtpd@chatmail
-cd ~/cm
 
 doas vim /etc/dovecot/dovecot.conf
 :: put the contents adjusting domain (2 times),
