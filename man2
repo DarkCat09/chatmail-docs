@@ -147,7 +147,8 @@ doas apk add dovecot@chatmail dovecot-openrc@chatmail dovecot-lmtpd@chatmail
 
 doas vim /etc/dovecot/dovecot.conf
 :: put the contents adjusting domain (2 times),
-   tls certs location and mailbox quotas
+   tls certs location, mailbox quotas
+   and vmail numeric uid (probably it's 101)
 ```
 protocols = imap lmtp
 auth_mechanisms = plain
@@ -214,6 +215,7 @@ namespace inbox {
 mail_uid = vmail
 mail_gid = vmail
 mail_privileged_group = vmail
+first_valid_uid = 101  # <-- REPLACE to output of $(id -u vmail)
 
 ##
 ## Mail processes
