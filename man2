@@ -690,6 +690,16 @@ echo '2 1  * * * /opt/certbot/bin/certbot renew &>/var/log/renew.log' >cron.add
 cat cron.bkp cron.add | doas crontab -
 rm cron.bkp cron.add
 
+doas vim /etc/letsencrypt/renewal-hooks/deploy/reload.sh
+::
+```
+#!/bin/sh -eu
+for svc in nginx postfix dovecot; do
+  /sbin/rc-service "$svc" reload
+done
+```
+doas chmod 750 /etc/letsencrypt/renewal-hooks/deploy/reload.sh
+
 :: on host
   cd relay
   venv/bin/cmdeploy webdev
