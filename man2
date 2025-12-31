@@ -1,5 +1,6 @@
 doas addgroup -S vmail
 doas adduser -h /home/vmail -s /bin/false -G vmail -S -D vmail
+doas -u vmail mkdir -p /home/vmail/mail/chat.example.com  # replace with your domain
 
 doas addgroup -S iroh
 doas adduser -s /bin/false -G iroh -S -D -H iroh
