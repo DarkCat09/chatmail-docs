@@ -785,3 +785,26 @@ echo '0d890274fda0ada70e19740df192c2e38cac69d2' | doas tee /etc/chatmail-version
 doas chmod 700 /etc/chatmail-version
 
 doas openrc
+
+
+:: update dns records
+```
+chat.example.com.           A      1.2.3.4
+www.chat.example.com.       CNAME  chat.example.com.
+mta-sts.chat.example.com.   CNAME  chat.example.com.
+
+chat.example.com.           MX     10 chat.example.com.
+_mta-sts.chat.example.com.  TXT    "v=STSv1; id=202512311957"
+
+opendkim._domainkey.chat.example.com.  TXT  "v=DKIM1;k=rsa;p=ABcd123...;s=email;t=s"
+
+_adsp._domainkey.chat.example.com.     TXT  "dkim=discardable"
+
+chat.example.com.           TXT    "v=spf1 a ~all"
+_dmarc.chat.example.com.    TXT    "v=DMARC1;p=reject;adkim=s;aspf=s"
+
+_submission._tcp.chat.example.com.   SRV  0  1  587  chat.example.com.
+_submissions._tcp.chat.example.com.  SRV  0  1  465  chat.example.com.
+_imap._tcp.chat.example.com.         SRV  0  1  143  chat.example.com.
+_imaps._tcp.chat.example.com.        SRV  0  1  993  chat.example.com.
+```
