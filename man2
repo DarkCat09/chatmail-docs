@@ -307,8 +307,8 @@ service anvil {
 
 # ADJUST PATHS TO TLS CERTS
 ssl = required
-ssl_cert = </etc/letsencrypt/live/chat.example.com/fullchain.pem  <-- HERE
-ssl_key = </etc/letsencrypt/live/chat.example.com/privkey.pem     <-- HERE
+ssl_cert = </etc/letsencrypt/live/chat.example.com/fullchain.pem  # <-- HERE
+ssl_key = </etc/letsencrypt/live/chat.example.com/privkey.pem     # <-- HERE
 ssl_dh = </etc/dovecot/dh.pem
 ssl_min_protocol = TLSv1.3
 ssl_prefer_server_ciphers = yes
