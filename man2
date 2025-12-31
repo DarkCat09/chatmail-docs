@@ -768,3 +768,6 @@ doas vim /var/www/html/.well-known/autoconfig/mail/config-v1.1.xml
   </emailProvider>
 </clientConfig>
 ```
+
+echo '0d890274fda0ada70e19740df192c2e38cac69d2' | doas tee /etc/chatmail-version
+doas chmod 700 /etc/chatmail-version
