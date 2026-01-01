@@ -402,7 +402,7 @@ smtpd_tls_cert_file=/etc/letsencrypt/live/chat.example.com/fullchain.pem  # <-- 
 smtpd_tls_key_file=/etc/letsencrypt/live/chat.example.com/privkey.pem     # <-- HERE
 smtpd_tls_security_level=may
 
-smtp_tls_CApath=/etc/ssl/certs
+smtp_tls_CAfile=/etc/ssl/certs/ca-certificates.crt
 smtp_tls_security_level=verify
 # Send SNI when connecting to other servers
 smtp_tls_servername = hostname
@@ -557,6 +557,9 @@ authclean unix  n       -       -       -       0       cleanup
 doas chown root: submission_header_cleanup login_map
 doas mv submission_header_cleanup login_map /etc/postfix/
 doas addgroup postfix opendkim
+
+doas mkdir -p /var/spool/postfix/etc
+doas cp /etc/resolv.conf /var/spool/postfix/etc
 
 for svc in postfix filtermail filtermail-incoming; do doas rc-update add "$svc"; done
 
