@@ -460,7 +460,7 @@ doas vim /etc/postfix/master.cf
 smtp      inet  n       -       y       -       -       smtpd 
   -o smtpd_tls_security_level=encrypt
   -o smtpd_tls_mandatory_protocols=>=TLSv1.2
-  -o smtpd_proxy_filter=127.0.0.1:10081  # <-- filtermail_smtp_port_incoming
+  -o smtpd_proxy_filter=127.0.0.1:10081
 submission inet n       -       y       -       5000    smtpd
   -o syslog_name=postfix/submission
   -o smtpd_tls_security_level=encrypt
@@ -476,7 +476,7 @@ submission inet n       -       y       -       5000    smtpd
   -o smtpd_recipient_restrictions=
   -o smtpd_relay_restrictions=permit_sasl_authenticated,reject
   -o smtpd_client_connection_count_limit=1000
-  -o smtpd_proxy_filter=127.0.0.1:10080  # <-- filtermail_smtp_port in chatmail.ini
+  -o smtpd_proxy_filter=127.0.0.1:10080
 smtps     inet  n       -       y       -       5000    smtpd
   -o syslog_name=postfix/smtps
   -o smtpd_tls_wrappermode=yes
@@ -492,7 +492,7 @@ smtps     inet  n       -       y       -       5000    smtpd
   -o smtpd_recipient_restrictions=
   -o smtpd_relay_restrictions=permit_sasl_authenticated,reject
   -o smtpd_client_connection_count_limit=1000
-  -o smtpd_proxy_filter=127.0.0.1:10080  # <-- filtermail_smtp_port
+  -o smtpd_proxy_filter=127.0.0.1:10080
 
 #628       inet  n       -       y       -       -       qmqpd
 pickup    unix  n       -       y       60      1       pickup
@@ -523,7 +523,6 @@ postlog   unix-dgram n  -       n       -       1       postlogd
 filter    unix -        n       n       -       -       lmtp
 
 # Local SMTP server for reinjecting outgoing filtered mail
-# 10025 is postfix_reinject_port in chatmail.ini
 127.0.0.1:10025 inet  n       -       n       -       100      smtpd
   -o syslog_name=postfix/reinject
   -o milter_macro_daemon_name=ORIGINATING
@@ -531,7 +530,6 @@ filter    unix -        n       n       -       -       lmtp
   -o cleanup_service_name=authclean
 
 # Local SMTP server for reinjecting incoming filtered mail
-# 10026 is postfix_reinject_port_incoming
 127.0.0.1:10026 inet  n       -       n       -       100      smtpd
   -o syslog_name=postfix/reinject_incoming
   -o smtpd_milters=unix:opendkim/opendkim.sock
