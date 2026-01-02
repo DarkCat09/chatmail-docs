@@ -25,7 +25,6 @@ rm ./*.whl
 :: on host
   git clone https://git.dc09.xyz/chatmail/openrc.git
   cd openrc
-  vim chatmail-turn  # replace domain in --realm
   scp -P 8022 ./* chat.example.com:/home/user/cm
   cd ..
 
