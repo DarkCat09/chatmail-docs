@@ -790,8 +790,8 @@ doas vim /var/www/html/.well-known/autoconfig/mail/config-v1.1.xml
 </clientConfig>
 ```
 
-echo '0d890274fda0ada70e19740df192c2e38cac69d2' | doas tee /etc/chatmail-version
-doas chmod 700 /etc/chatmail-version
+echo 'bcf2fdb5d0205851c94382f3d8474dc637755211' | doas tee /etc/chatmail-version
+doas chmod 600 /etc/chatmail-version
 
 doas openrc
 
