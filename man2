@@ -423,8 +423,8 @@ tls_preempt_cipherlist = yes
 smtpd_relay_restrictions = permit_mynetworks permit_sasl_authenticated defer_unauth_destination
 
 myhostname = chat.example.com  # <-- HERE
-#alias_maps = hash:/etc/aliases  # TODO
-#alias_database = hash:/etc/aliases
+alias_maps = lmdb:/etc/postfix/aliases
+alias_database = lmdb:/etc/postfix/aliases
 
 mydestination =
 relayhost =
@@ -559,6 +559,7 @@ authclean unix  n       -       -       -       0       cleanup
 
 doas chown root: submission_header_cleanup login_map
 doas mv submission_header_cleanup login_map /etc/postfix/
+doas newaliases
 doas addgroup postfix opendkim
 
 doas mkdir -p /var/spool/postfix/etc
