@@ -378,6 +378,12 @@ fs.inotify.max_user_instances = 65535
 fs.inotify.max_user_watches = 65535
 ```
 
+doas vim /etc/conf.d/dovecot
+::
+```
+rc_ulimit="-n 20000"
+```
+
 for svc in dovecot doveauth chatmail-metadata lastlogin; do doas rc-update add "$svc"; done
 
 doas vim /etc/postfix/main.cf
