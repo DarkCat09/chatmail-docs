@@ -721,6 +721,7 @@ doas chmod 750 /etc/letsencrypt/renewal-hooks/deploy/reload.sh
 
 doas mkdir -p /var/www/html
 doas tar xf site.tar -C /var/www/html --no-same-owner --no-same-permissions
+rm site.tar
 
 doas mkdir -p /var/www/html/.well-known
 doas vim /var/www/html/.well-known/mta-sts.txt
