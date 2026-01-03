@@ -1,3 +1,14 @@
+# chatmail on alpine
+
+So, you want to help the DeltaChat network and host a public chatmail relay. Great!
+Let's get started.
+
+This documentation assumes that you're operating from an account called `user` (replace accordingly in `scp` commands),
+which have sufficient permissions to run `doas` (if `sudo`, replace accordingly),
+and your chatmail relay domain is `chat.example.com` (guess what? yes, replace it too).
+
+// TODO
+
 doas addgroup -S -g 501 vmail
 doas adduser -h /home/vmail -s /bin/false -G vmail -S -D -u 501 vmail
 doas -u vmail mkdir -p /home/vmail/mail/chat.example.com  # replace with your domain
