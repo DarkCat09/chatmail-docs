@@ -30,7 +30,7 @@ cmdeploy requires a clean Debian&nbsp;12 system (good luck running on a differen
 an SSH root access on port 22 (!!), overwrites all chatmail relay configs (so you have to edit them in your cloned repo, not on your server),
 and it's impossible to change acmetool to a different ACME client without altering cmdeploy's source code and configs.
 
-## And what have i just found
+## And what have I just found
 
 *This* is the documentation that will guide you through all the chatmail relay installation manually, by yourself.
 No automation scripts. No magic commands. *You* understand how *your* server is configured.
@@ -44,10 +44,10 @@ No automation scripts. No magic commands. *You* understand how *your* server is 
 3. newemail script has been [rewritten](https://git.dc09.xyz/chatmail/newemail) as a small regular HTTP server,
   because the official cgi-bin `newemail.py` has hardcoded paths (see&nbsp;1) and is obviously inefficient.
 4. Some Alpine Linux packages may have been built with different feature flags compared to Debian packages,
-  but i can assure you that everything a chatmail relay needs is included. \
+  but I can assure you that everything a chatmail relay needs is included. \
   Be aware that Alpine's Postfix is built without BerkeleyDB support due to licensing issues
-  (and i had no desire to re-package one more component),
-  that's why i use LMDB in the configs instead of `hash:` and `btree:`.
+  (and I had no desire to re-package one more component),
+  that's why I use LMDB in the configs instead of `hash:` and `btree:`.
 
 ## Afterword
 
