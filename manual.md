@@ -7,53 +7,127 @@ This documentation assumes that you're operating from an account called `user` (
 which have sufficient permissions to run `doas` (if `sudo`, replace accordingly),
 and your chatmail relay domain is `chat.example.com` (guess what? yes, replace it too).
 
-// TODO
-
+## User for mailbox operations
+```shell
 doas addgroup -S -g 501 vmail
 doas adduser -h /home/vmail -s /bin/false -G vmail -S -D -u 501 vmail
 doas -u vmail mkdir -p /home/vmail/mail/chat.example.com  # replace with your domain
+```
 
+## User for iroh relay
+```shell
 doas addgroup -S iroh
 doas adduser -s /bin/false -G iroh -S -D -H iroh
+```
 
+## chatmaild
+Create a new virtualenv:
+```shell
 doas apk add python3 py3-virtualenv
 doas python3 -m venv /opt/chatmaild
+```
 
+Let's use a separate directory for files we copy to the server during the installation:
+```shell
 mkdir ~/cm
 cd ~/cm
+```
 
-:: on host
-  git clone https://github.com/chatmail/relay.git
-  cd relay
-  docker run -it --rm -v ./:/src alpine:latest sh -c 'apk add python3 py3-pip gcc musl-dev python3-dev && pip wheel -w /src/dist /src/chatmaild'
-  scp -P 8022 ./dist/*.whl chat.example.com:/home/user/cm
-  sudo rm -rf dist chatmaild/src/chatmaild.egg-info
-  cd ..
+On your PC, clone the official chatmail relay repo:
+```shell
+git clone https://github.com/chatmail/relay.git
+```
 
+Now, install chatmaild.
+
+### Directly on a server
+You can do everything on a server, but `crypt_r` dependency requires `gcc`,
+and I'd suggest not to bring the whole C compiler.
+If you're still not morally obligated to keep your relay as minimal as possible:
+```shell
+doas apk add git gcc musl-dev python3-dev
+git clone https://github.com/chatmail/relay.git
+cd relay
+doas /opt/chatmaild/bin/pip install ./chatmaild
+```
+
+### From a musl local host
+If your PC runs an x86_64 system with musl libc and the same Python version,
+you can build Python packages (wheels) on it:
+```shell
+cd relay
+pip wheel -w ./dist ./chatmaild
+```
+Then, upload them to your server:
+```shell
+scp -P 8022 ./dist/*.whl user@chat.example.com:/home/user/cm
+cd ..
+```
+And, on the server:
+```shell
 doas /opt/chatmaild/bin/pip install ./*.whl
 rm ./*.whl
+```
 
-:: on host
-  git clone https://git.dc09.xyz/chatmail/openrc.git
-  cd openrc
-  scp -P 8022 ./* chat.example.com:/home/user/cm
-  cd ..
+### From a local host with containerd
+Alternatively, if your main system is not musl, or its CPU arch doesn't match with server's one,
+build Python packages in a container, emulator, etc.
 
-doas crontab -l >cron.bkp
+For example, with Docker:
+```shell
+cd relay
+docker run -it --rm -v ./:/src alpine:latest sh -c 'apk add python3 py3-pip gcc musl-dev python3-dev && pip wheel -w /src/dist /src/chatmaild'
+```
+Upload:
+```shell
+scp -P 8022 ./dist/*.whl user@chat.example.com:/home/user/cm
+sudo rm -rf dist chatmaild/src/chatmaild.egg-info  # to prevent permission issues since docker is run as root
+cd ..
+```
+Install:
+```shell
+doas /opt/chatmaild/bin/pip install ./*.whl
+rm ./*.whl
+```
+
+## cron and init.d
+On your PC, clone the repo and upload all files from it:
+```shell
+git clone https://git.dc09.xyz/chatmail/openrc.git
+cd openrc
+scp -P 8022 ./* chat.example.com:/home/user/cm
+cd ..
+```
+Add new crontab jobs:
+```shell
+doas crontab -l >cron.bkp  # saving previous crontab to combine with new one
 cat cron.bkp crontab | doas crontab -
 rm cron.bkp crontab
-
+```
+Place chatmail OpenRC scripts:
+```shell
 doas chown root: ./*
 doas chmod 755 ./*
 doas mv ./* /etc/init.d
+```
 
+## TURN server for calls
+On your server, download the official binary, verify its integrity, place to `/usr/local/bin`
+and enable its OpenRC service (which was installed in the previous step):
+```shell
 curl -L -o ./chatmail-turn 'https://github.com/chatmail/chatmail-turn/releases/download/v0.3/chatmail-turn-x86_64-linux'
 echo '841e527c15fdc2940b0469e206188ea8f0af48533be12ecb8098520f813d41e4 chatmail-turn' | sha256sum -c
 doas chown root: chatmail-turn
 doas chmod 755 chatmail-turn
 doas mv chatmail-turn /usr/local/bin/
 doas rc-update add chatmail-turn
+```
 
+## Iroh Relay
+Same goes for iroh: download an official binary (v0.35.0 is chosen on purpose,
+newer releases until v1 are considered non-stable and contain breaking changes),
+verify its integrity, place the binary in the system, enable its init.d service:
+```shell
 curl -L -o iroh.tar.gz 'https://github.com/n0-computer/iroh/releases/download/v0.35.0/iroh-relay-v0.35.0-x86_64-unknown-linux-musl.tar.gz'
 tar xzf iroh.tar.gz
 rm iroh.tar.gz
@@ -62,6 +136,7 @@ doas chown root: iroh-relay
 doas chmod 755 iroh-relay
 doas mv iroh-relay /usr/local/bin/
 doas rc-update add iroh-relay
+```
 
 :: on host
   cd relay
