@@ -95,7 +95,7 @@ On your PC, clone the repo and upload all files from it:
 ```shell
 git clone https://git.dc09.xyz/chatmail/openrc.git
 cd openrc
-scp -P 8022 ./* chat.example.com:/home/user/cm
+scp -P 8022 ./* user@chat.example.com:/home/user/cm
 cd ..
 ```
 Add new crontab jobs:
@@ -138,35 +138,58 @@ doas mv iroh-relay /usr/local/bin/
 doas rc-update add iroh-relay
 ```
 
-:: on host
-  cd relay
-  python -m venv venv
-  venv/bin/pip install -e ./chatmaild -e ./cmdeploy
-  venv/bin/cmdeploy init chat.example.com
-  vim chatmail.ini
-  scp -P 8022 \
-    ./chatmail.ini \
-    ./cmdeploy/src/cmdeploy/iroh-relay.toml \
-    ./cmdeploy/src/cmdeploy/opendkim/*.lua \
-    chat.example.com:/home/user/cm
-  cd ..
-
+## chatmaild and iroh configs
+On your PC, install cmdeploy into a virtualenv, generate a chatmaild config and adjust it, then upload it
+(with an iroh config, since we already installed it so why not configure it now)
+```shell
+cd relay
+python -m venv venv
+venv/bin/pip install -e ./chatmaild -e ./cmdeploy
+venv/bin/cmdeploy init chat.example.com
+vim chatmail.ini  # use any preferred editor
+# not all parameters make sense since we're doing a manual install
+scp -P 8022 \
+  ./chatmail.ini \
+  ./cmdeploy/src/cmdeploy/iroh-relay.toml \
+  user@chat.example.com:/home/user/cm
+cd ..
+```
+Let's get back to the server:
+```shell
+# mailname config (replace the domain!)
 echo 'chat.example.com' | doas tee /etc/mailname
-
+# chatmaild and iroh
 doas chown root: chatmail.ini iroh-relay.toml
 doas mv chatmail.ini iroh-relay.toml /etc/
+```
 
+## Custom APK repo
+Not everything in Alpine is packaged with required feature flags or patches.
+I maintain a separate APK repository on my Forgejo which includes [Dovecot](https://git.dc09.xyz/chatmail/dovecot),
+[OpenDKIM](https://git.dc09.xyz/chatmail/opendkim) and a rewrite of [newemail](https://git.dc09.xyz/chatmail/newemail).
+Packages are built with CI, you can check the workflow configurations.
+
+To add the repo to the server:
+```shell
 cd /etc/apk/keys
 doas curl -JO https://git.dc09.xyz/api/packages/chatmail/alpine/key
 echo '@chatmail https://git.dc09.xyz/api/packages/chatmail/alpine/3.23/chatmail' | doas tee -a /etc/apk/repositories
 cd ~/cm
+```
 
+Alternatively, you can build those packages by yourself, see [Alpine Wiki](https://wiki.alpinelinux.org/wiki/Abuild_and_Helpers).
+You'll need to do `abuild-keygen -a`, copy that repo key to server's `/etc/apk/keys`,
+clone git repos with APKBUILDs (listed above) and run `abuild -r` there, then upload and install `.apk`-s from `~/packages/chatmail/x86_64/`.
+
+## OpenDKIM
+```shell
 doas apk add opendkim@chatmail opendkim-libs@chatmail opendkim-utils@chatmail
 doas apk add dnssec-root
 doas apk add postfix
+```
 
-doas vim /etc/opendkim/opendkim.conf
-:: put the contents adjusting domain (1 time)
+`doas vim /etc/opendkim/opendkim.conf` \
+Put this config replacing a domain (in one line marked with `<--`)
 ```
 Syslog yes
 SyslogSuccess yes
@@ -201,39 +224,66 @@ MTA ORIGINATING
 InternalHosts -
 ```
 
+Now, upload Lua scripts, from a cloned repo on your PC:
+```shell
+cd relay
+scp -P 8022 ./cmdeploy/src/cmdeploy/opendkim/*.lua user@chat.example.com:/home/user/cm
+cd ..
+```
+On the server:
+```shell
 doas chown root: *.lua
 doas mv screen.lua final.lua /etc/opendkim/
+```
+```shell
 doas mkdir /etc/dkimkeys
+```
 
-doas vim /etc/dkimkeys/KeyTable
-:: put the contents adjusting domain (2 times)
+`doas vim /etc/dkimkeys/KeyTable` \
+Put this line adjusting a domain 2 times:
 ```
 opendkim._domainkey.chat.example.com chat.example.com:opendkim:/etc/dkimkeys/opendkim.private
 ```
 
-doas vim /etc/dkimkeys/SigningTable
-:: put the contents adjusting domain (2 times)
+`doas vim /etc/dkimkeys/SigningTable` \
+Put this line adjusting a domain, again 2 times:
 ```
 *@chat.example.com opendkim._domainkey.chat.example.com
 ```
 
+Change OpenDKIM configs owner/permissions:
+```shell
 doas chown opendkim: /etc/opendkim
 doas chown -R opendkim: /etc/dkimkeys
 doas chmod 750 /etc/opendkim /etc/dkimkeys
+```
 
+Generate a new DKIM key for your mail server (replace domain)
+```shell
 doas -u opendkim opendkim-genkey -D /etc/dkimkeys -d chat.example.com -s opendkim
+```
 
+And create a directory for OpenDKIM's unix socket, with which Postfix will be communicating:
+```shell
 doas mkdir /var/spool/postfix/opendkim
 doas chown opendkim: /var/spool/postfix/opendkim
 doas chmod 750 /var/spool/postfix/opendkim
+```
 
+Enable the init.d service:
+```shell
 doas rc-update add opendkim
+```
 
+## Dovecot
+The custom APK repo contains Dovecot 2.3.21.1 (in 2.4 they completely broke the config format compatibility)
+built with a [simple patch for better performance](https://github.com/chatmail/dovecot/blob/master/debian/patches/remove-500ms-idle-debounce.patch)
+```shell
 doas apk add dovecot@chatmail dovecot-openrc@chatmail dovecot-lmtpd@chatmail dovecot-lua@chatmail
+```
 
-doas vim /etc/dovecot/dovecot.conf
-:: put the contents adjusting domain (2 times),
-   tls certs location and mailbox quotas
+`doas vim /etc/dovecot/dovecot.conf` \
+Put the contents replacing a domain (in 2 lines), adjusting TLS certs location and mailbox quotas
 ```
 protocols = imap lmtp
 auth_mechanisms = plain
@@ -423,10 +473,9 @@ service imap-hibernate {
 }
 ```
 
-doas vim /etc/dovecot/dh.pem
-:: afaik it's safe to just copy these
-  i generated them via `openssl dhparam 4096 >dh.pem`
-  (run on a host with sufficient entropy!)
+`doas vim /etc/dovecot/dh.pem` \
+Copy the contents below, or [from Debian package](https://salsa.debian.org/debian/dovecot/-/blob/ffffbace9e/debian/dh.pem),
+or alternatively, generate dhparams on your PC with `openssl dhparam 4096 >dh.pem` (takes some time)
 ```
 -----BEGIN DH PARAMETERS-----
 MIICDAKCAgEAyvlzzX8sCG2iHMMa0ywepwE6ssGio+TJHhppS0dUYVIgUulUIa8I
@@ -443,33 +492,43 @@ eEzshgR6e3LDFUB1QRC1Xg1ZGq2SwL2l+lqsJMSMnKH8jO8WBTjujS8CAQICAgFF
 -----END DH PARAMETERS-----
 ```
 
-:: on host
-  cd relay
-  scp -P 8022 \
-    ./cmdeploy/src/cmdeploy/dovecot/auth.conf \
-    ./cmdeploy/src/cmdeploy/dovecot/push_notification.lua \
-    chat.example.com:/home/user/cm
-  cd ..
-
+Upload Lua scripts from the cloned chatmail/relay repo:
+```shell
+cd relay
+scp -P 8022 \
+  ./cmdeploy/src/cmdeploy/dovecot/auth.conf \
+  ./cmdeploy/src/cmdeploy/dovecot/push_notification.lua \
+  user@chat.example.com:/home/user/cm
+cd ..
+```
+On the server:
+```shell
 doas chown root: auth.conf push_notification.lua
 doas mv auth.conf push_notification.lua /etc/dovecot
+```
 
+Since we may need to handle many connections, let's adjust the limits:
+
+```shell
 doas sysctl -w fs.inotify.max_user_instances=65535
 doas sysctl -w fs.inotify.max_user_watches=65535
-doas vim /etc/sysctl.d/inotify.conf
-::
 ```
+
+`doas vim /etc/sysctl.d/inotify.conf`
+```ini
 fs.inotify.max_user_instances = 65535
 fs.inotify.max_user_watches = 65535
 ```
 
-doas vim /etc/conf.d/dovecot
-::
-```
+`doas vim /etc/conf.d/dovecot`
+```shell
 rc_ulimit="-n 20000"
 ```
 
+Enable OpenRC services for Dovecot and related chatmaild scripts:
+```shell
 for svc in dovecot doveauth chatmail-metadata lastlogin; do doas rc-update add "$svc"; done
+```
 
 doas vim /etc/postfix/main.cf
 :: put the contents adjusting domain (3 times),
