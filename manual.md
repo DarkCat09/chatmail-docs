@@ -530,9 +530,9 @@ Enable OpenRC services for Dovecot and related chatmaild scripts:
 for svc in dovecot doveauth chatmail-metadata lastlogin; do doas rc-update add "$svc"; done
 ```
 
-doas vim /etc/postfix/main.cf
-:: put the contents adjusting domain (3 times),
-   tls certs location and msg size quota
+## Postfix
+`doas vim /etc/postfix/main.cf` \
+Put the config replacing a domain (3 times), adjusting TLS certs location and message size quota
 ```
 compatibility_level = 3.6
 
@@ -594,8 +594,8 @@ smtpd_sender_login_maps = regexp:/etc/postfix/login_map
 smtpd_peername_lookup = no
 ```
 
-doas vim /etc/postfix/master.cf
-:: put the contents
+`doas vim /etc/postfix/master.cf` \
+Just copy the config (unless you had to change filtermail ports in chatmail.ini for some weird reason &mbsp; in that case change them respectively in 5 lines)
 ```
 # ==========================================================================
 # service type  private unpriv  chroot  wakeup  maxproc command + args
@@ -693,30 +693,47 @@ authclean unix  n       -       -       -       0       cleanup
   -o header_checks=regexp:/etc/postfix/submission_header_cleanup
 ```
 
-:: on host
-  cd relay
-  scp -P 8022 \
-    ./cmdeploy/src/cmdeploy/postfix/submission_header_cleanup \
-    ./cmdeploy/src/cmdeploy/postfix/login_map \
-    chat.example.com:/home/user/cm
-  cd ..
-
+Upload some more configs:
+```shell
+cd relay
+scp -P 8022 \
+  ./cmdeploy/src/cmdeploy/postfix/submission_header_cleanup \
+  ./cmdeploy/src/cmdeploy/postfix/login_map \
+  user@chat.example.com:/home/user/cm
+cd ..
+```
+```shell
 doas chown root: submission_header_cleanup login_map
 doas mv submission_header_cleanup login_map /etc/postfix/
+```
+Generate an alias database:
+```shell
 doas newaliases
+```
+Add to OpenDKIM group so Postfix can access the socket:
+```shell
 doas addgroup postfix opendkim
-
+```
+Fix resolv.conf in chroot:
+```shell
 doas mkdir -p /var/spool/postfix/etc
 doas cp /etc/resolv.conf /var/spool/postfix/etc
+```
 
+Enable OpenRC services &mdash; Postfix and chatmaild filtermail scripts:
+```shell
 for svc in postfix filtermail filtermail-incoming; do doas rc-update add "$svc"; done
+```
 
+## nginx
+Install nginx web server and `stream` module
+```shell
 doas apk add nginx nginx-mod-stream
-doas apk add newemail@chatmail
+```
 
-doas vim /etc/nginx/nginx.conf
-:: put the contents adjusting domain (5 lines)
-   and tls certs location
+`doas vim /etc/nginx/nginx.conf` \
+Put the contents replacing a domain (in 5 lines) and adjusting TLS certs location,
+leaving TLS disabled for now until we setup certbot
 ```
 load_module modules/ngx_stream_module.so;
 
@@ -822,39 +839,64 @@ http {
 }
 ```
 
-doas rc-update add newemail
-
+Enable init.d, validate the config (just in case) and start nginx:
+```shell
 doas rc-update add nginx
 doas service nginx checkconfig
 doas service nginx start
+```
 
+## certbot
+Install to a virtualenv:
+```shell
 doas python3 -m venv /opt/certbot
 doas /opt/certbot/bin/pip install certbot certbot-nginx
-
+```
+Request certificates via http-01 challenge:
+```shell
 doas /opt/certbot/bin/certbot certonly --nginx
+```
 
-doas vim /etc/nginx/nginx.conf
-:: ensure tls certs location is correct,
-   enable tls by uncommenting cert/key path (find comment "UNCOMMENT AFTER")
-   and adding `ssl` option to listen 8443 (find 2 comments "REPLACE AFTER")
+`doas vim /etc/nginx/nginx.conf` \
+* ensure that TLS certs location is correct
+* uncomment them (find 1 comment: `# UNCOMMENT AFTER SETTING UP CERTBOT`)
+* enable serving over TLS by adding `ssl` option to `listen` on 8443 (find 2 comments: `# REPLACE AFTER SETTING UP CERTBOT`)
 
+Let's validate the modified config and restart nginx:
+```shell
 doas service nginx checkconfig
 doas service nginx restart
+```
 
+Also, don't forget that TLS certs should be automatically renewed.
+Let's ask certbot to check them, and renew if needed, every day at 01:02
+```shell
 doas crontab -l >cron.bkp
 echo '2 1  * * * /opt/certbot/bin/certbot renew &>/var/log/renew.log' >cron.add
 cat cron.bkp cron.add | doas crontab -
 rm cron.bkp cron.add
-
-doas vim /etc/letsencrypt/renewal-hooks/deploy/reload.sh
-::
 ```
+
+When certs are updated, programs which use TLS should re-read them, so we setup a deploy hook:
+`doas vim /etc/letsencrypt/renewal-hooks/deploy/reload.sh`
+```shell
 #!/bin/sh -eu
 for svc in nginx postfix dovecot; do
   /sbin/rc-service "$svc" reload
 done
 ```
+And allow execution of this script:
+```shell
 doas chmod 750 /etc/letsencrypt/renewal-hooks/deploy/reload.sh
+```
+
+# newemail
+This is a chatmaild service which just generates random username and password
+when a client requests them as a part of signing up process.
+```shell
+doas apk add newemail@chatmail
+doas rc-update add newemail
+```
 
 :: on host
   cd relay
