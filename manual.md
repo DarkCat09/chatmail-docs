@@ -3,7 +3,8 @@
 So, you want to help the DeltaChat network and host a public chatmail relay. Great!
 Let's get started.
 
-This documentation assumes that you're operating from an account called `user` (replace accordingly in `scp` commands),
+This documentation assumes that SSH server listens at `chat.example.com:8022`,
+you're operating from an account called `user` (replace accordingly in `scp` commands),
 which have sufficient permissions to run `doas` (if `sudo`, replace accordingly),
 and your chatmail relay domain is `chat.example.com` (guess what? yes, replace it too).
 
