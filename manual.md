@@ -890,7 +890,7 @@ And allow execution of this script:
 doas chmod 750 /etc/letsencrypt/renewal-hooks/deploy/reload.sh
 ```
 
-# newemail
+## newemail
 This is a chatmaild service which just generates random username and password
 when a client requests them as a part of signing up process.
 ```shell
