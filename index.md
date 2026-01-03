@@ -34,3 +34,21 @@ and it's impossible to change acmetool to a different ACME client without alteri
 
 *This* is the documentation that will guide you through all the chatmail relay installation manually, by yourself.
 No automation scripts. No magic commands. *You* understand how *your* server is configured.
+
+## Differences from the original relay
+
+1. Main configuration and virtualenv paths: \
+  `/usr/local/lib/chatmaild/chatmail.ini` --> `/etc/chatmail.ini` \
+  `/usr/local/lib/chatmaild/venv` --> `/opt/chatmaild`
+2. certbot is used instead of acmetool, but of course, you're free to change it to whatever ACME client you like.
+3. newemail script has been [rewritten](https://git.dc09.xyz/chatmail/newemail) as a small regular HTTP server,
+  because the official cgi-bin `newemail.py` has hardcoded paths (see&nbsp;1) and is obviously inefficient.
+4. Some Alpine Linux packages may have been built with different feature flags compared to Debian packages,
+  but i can assure you that everything a chatmail relay needs is included. \
+  Be aware that Alpine's Postfix is built without BerkeleyDB support due to licensing issues
+  (and i had no desire to re-package one more component),
+  that's why i use LMDB in the configs instead of `hash:` and `btree:`.
+
+## Afterword
+
+Meow :3
