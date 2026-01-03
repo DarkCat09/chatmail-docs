@@ -898,21 +898,43 @@ doas apk add newemail@chatmail
 doas rc-update add newemail
 ```
 
-:: on host
-  cd relay
-  venv/bin/python -c 'from chatmaild import config; from cmdeploy import www; from pathlib import Path; www.build_webpages(Path("www/src"), Path("www/build"), config.read_config("chatmail.ini"))'
-  cd www/build
-  tar cf site.tar ./*
-  scp -P 8022 ./site.tar chat.example.com:/home/user/cm
-  cd ../../..
+## Webpages
+As a chatmail relay admin, you probably want to tell a bit about your instance
+and show a QR code and a link for users to conveniently proceed to registration.
+Static pages should be put into `/var/www/html` directory.
 
+### Official pages
+To build and host a static website from cmdeploy, run these commands on your PC: \
+(yes, cmdeploy doesn't have a CLI interface to just build pages, so here's a one-line command)
+```shell
+cd relay
+venv/bin/python -c 'from chatmaild import config; from cmdeploy import www; from pathlib import Path; www.build_webpages(Path("www/src"), Path("www/build"), config.read_config("chatmail.ini"))'
+cd www/build
+tar cf site.tar ./*
+scp -P 8022 ./site.tar user@chat.example.com:/home/user/cm
+cd ../../..
+```
+And then, on the server:
+```shell
 doas mkdir -p /var/www/html
 doas tar xf site.tar -C /var/www/html --no-same-owner --no-same-permissions
 rm site.tar
+```
 
+### Custom pages
+Write whatever you want and place in `/var/www/html/`.
+A link for account sign up is `dcaccount:https://chat.example.com/new`,
+a QR code just contains the same link (please use a local QR code generator and/or validate the contents).
+
+In case you're building some custom registration system (why??),
+you may want to generate links/QRs like `dclogin:username@chat.example.com/?p=password&v=1`
+
+## .well-known routes
+```shell
 doas mkdir -p /var/www/html/.well-known
 doas vim /var/www/html/.well-known/mta-sts.txt
-:: put the contents adjusting domain
+```
+Put the contents replacing a domain:
 ```
 version: STSv1
 mode: enforce
@@ -920,9 +942,11 @@ mx: chat.example.com
 max_age: 2419200
 ```
 
+```shell
 doas mkdir -p /var/www/html/.well-known/autoconfig/mail
 doas vim /var/www/html/.well-known/autoconfig/mail/config-v1.1.xml
-:: put the contents adjusting domain (find+replace in editor or use sed)
+```
+Put the contents, use find+replace `chat.example.com` in your editor
 ```
 <?xml version="1.0" encoding="UTF-8"?>
 
@@ -977,31 +1001,66 @@ doas vim /var/www/html/.well-known/autoconfig/mail/config-v1.1.xml
 </clientConfig>
 ```
 
+## cmdeploy git commit
+It is not used at all, probably was made for tests as a marker for a successful deployment.
+But you may include it if you want, it may help to determine what commit your installation is based on.
+```shell
 echo 'bcf2fdb5d0205851c94382f3d8474dc637755211' | doas tee /etc/chatmail-version
 doas chmod 600 /etc/chatmail-version
+```
 
+## Finally. Start all the services
+```shell
 doas openrc
+```
+You may need to restart OpenDKIM, otherwise it fails to sign messages,
+and honestly, I don't know why.
 
+## DNS records
+There's another step left. I promise it's the last one.
 
-:: update dns records
+Point domains to your server IP address, this is what you already have done long ago:
 ```
 chat.example.com.           A      1.2.3.4
 www.chat.example.com.       CNAME  chat.example.com.
 mta-sts.chat.example.com.   CNAME  chat.example.com.
+```
 
-chat.example.com.           MX     10 chat.example.com.
+MX record specifying which mail server handles e-mail for this domain: \
+10 is a priority value
+```
+chat.example.com.           MX     10  chat.example.com.
+```
+
+Enable MTA-STS: \
+id can be `$(date +%Y%m%d%H%M)` as chatmail does,
+but `id=1` should be okay too
+```
 _mta-sts.chat.example.com.  TXT    "v=STSv1; id=202512311957"
-# sts id can be $(date +%Y%m%d%H%M) as chatmail does
-# but id=1 should be okay too
+```
 
-# open /etc/dkimkeys/opendkim.txt and copy the p= value
+DKIM signing key: \
+open `/etc/dkimkeys/opendkim.txt` and copy the p= value
+(it may be split into multiple quoted strings, copy all of that)
+```
 opendkim._domainkey.chat.example.com.  TXT  "v=DKIM1;k=rsa;p=ABcd123...;s=email;t=s"
+```
 
+Instruct mail servers to reject messages without a signature:
+```
 _adsp._domainkey.chat.example.com.     TXT  "dkim=discardable"
+```
 
+SPF record means that e-mail from this domain must be received only from
+an address specified in the A record, DMARC tells to reject mail on
+SPF or DKIM verification failure
+```
 chat.example.com.           TXT    "v=spf1 a ~all"
 _dmarc.chat.example.com.    TXT    "v=DMARC1;p=reject;adkim=s;aspf=s"
+```
 
+SRV records help clients to determine host and port of mail services
+```
 _submission._tcp.chat.example.com.   SRV  0  1  587  chat.example.com.
 _submissions._tcp.chat.example.com.  SRV  0  1  465  chat.example.com.
 _imap._tcp.chat.example.com.         SRV  0  1  143  chat.example.com.
