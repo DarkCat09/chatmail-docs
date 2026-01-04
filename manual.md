@@ -502,7 +502,7 @@ doas vim /etc/dovecot/dh.pem
 ```
 Copy the contents below, or [from Debian package](https://salsa.debian.org/debian/dovecot/-/blob/ffffbace9e/debian/dh.pem),
 or alternatively, generate dhparams on your PC with `openssl dhparam 4096 >dh.pem` (takes some time)
-```
+```pem
 -----BEGIN DH PARAMETERS-----
 MIICDAKCAgEAyvlzzX8sCG2iHMMa0ywepwE6ssGio+TJHhppS0dUYVIgUulUIa8I
 h1EGOH48hMhM0fHXR/xbBrIAygQGJwGwhVZbE+iXKjGF/i+0ms4eCSrhw//HQcVH
@@ -781,7 +781,7 @@ doas vim /etc/nginx/nginx.conf
 ```
 Put the contents replacing a domain (in 5 lines) and adjusting TLS certs location
 leaving TLS disabled for now, until we setup certbot
-```
+```nginx
 load_module modules/ngx_stream_module.so;
 
 user nginx;
@@ -1003,7 +1003,7 @@ doas mkdir -p /var/www/html/.well-known/autoconfig/mail
 doas vim /var/www/html/.well-known/autoconfig/mail/config-v1.1.xml
 ```
 Put the contents, use find+replace `chat.example.com` in your editor
-```
+```xml
 <?xml version="1.0" encoding="UTF-8"?>
 
 <clientConfig version="1.1">
