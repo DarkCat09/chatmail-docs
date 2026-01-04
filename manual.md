@@ -1116,7 +1116,8 @@ _dmarc.chat.example.com.    TXT    "v=DMARC1;p=reject;adkim=s;aspf=s"
 ```
 
 ### Service records
-Add SRV records that help clients to find host and port for smtp(s)/imap(s)
+Add SRV records that help clients to find host and port for smtp(s)/imap(s),
+where 0 is priority, 1 is weight, 587/465/143/993 are ports:
 ```dns
 _submission._tcp.chat.example.com.   SRV  0  1  587  chat.example.com.
 _submissions._tcp.chat.example.com.  SRV  0  1  465  chat.example.com.
