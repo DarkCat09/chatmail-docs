@@ -26,9 +26,10 @@ Chatmail relay is a mail server configuration consisting of:
 The only official installation method is by using cmdeploy.
 It's a pyinfra script deploying all chatmail relay software with their config files on a specified server.
 While it's probably good for newcomers and less experienced admins, it's extremely non-flexible:
-cmdeploy requires a clean Debian&nbsp;12 system (good luck running on a different OS),
-an SSH root access on port 22 (!!), overwrites all chatmail relay configs (so you have to edit them in your cloned repo, not on your server),
-and it's impossible to change acmetool to a different ACME client without altering cmdeploy's source code and configs.
+* cmdeploy requires a clean Debian&nbsp;12 system (good luck running on a different OS)
+* requires an SSH root access on port 22 (!!)
+* overwrites all chatmail relay configs (so you have to edit them in your cloned repo)
+* it's impossible to change acmetool to a different ACME client without altering cmdeploy's source code and configs
 
 ## And what have I just found
 
