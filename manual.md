@@ -1124,3 +1124,6 @@ _submissions._tcp.chat.example.com.  SRV  0  1  465  chat.example.com.
 _imap._tcp.chat.example.com.         SRV  0  1  143  chat.example.com.
 _imaps._tcp.chat.example.com.        SRV  0  1  993  chat.example.com.
 ```
+
+## Upgrading
+[See here](upgrade.md)
