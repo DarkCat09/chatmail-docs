@@ -233,7 +233,7 @@ MTA ORIGINATING
 InternalHosts -
 ```
 
-Now, upload Lua scripts, from a cloned repo on your PC:
+Now, upload Lua scripts from the chatmail git repo on your PC:
 ```shell
 cd relay
 scp -P 8022 ./cmdeploy/src/cmdeploy/opendkim/*.lua user@chat.example.com:/home/user/cm
