@@ -48,6 +48,7 @@ No automation scripts. No magic commands. *You* understand how *your* server is 
   Be aware that Alpine's Postfix is built without BerkeleyDB support due to licensing issues
   (and I had no desire to re-package one more component),
   that's why I use LMDB in the configs instead of `hash:` and `btree:`.
+5. Metrics configuration and mtail setup are not covered by this manual.
 
 ## Afterword
 
