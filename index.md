@@ -33,7 +33,7 @@ While it's probably good for newcomers and less experienced admins, it's extreme
 
 ## So what is this exactly?
 
-[*This*](../manual.md) is a documentation that will guide you through all the chatmail relay installation.
+[*This*](manual.md) is a documentation that will guide you through all the chatmail relay installation.
 No automation scripts. No magic commands. You setup it manually. *You* understand how *your* server is configured.
 
 ## Differences from the original relay
