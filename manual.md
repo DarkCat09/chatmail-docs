@@ -1035,21 +1035,21 @@ www.chat.example.com.       CNAME  chat.example.com.
 mta-sts.chat.example.com.   CNAME  chat.example.com.
 ```
 
-MX record specifying which mail server handles e-mail for this domain: \
-10 is a priority value
+MX record specifying which mail server handles e-mail for this domain,
+where 10 is a priority value:
 ```
 chat.example.com.           MX     10  chat.example.com.
 ```
 
-Enable MTA-STS: \
-id can be `$(date +%Y%m%d%H%M)` as chatmail does,
-but `id=1` should be okay too
+Enable MTA-STS policy:
 ```
 _mta-sts.chat.example.com.  TXT    "v=STSv1; id=202512311957"
 ```
+`id` parameter should represent the last time when the policy was modified.
+cmdeploy generates it as `$(date +%Y%m%d%H%M)`, but `id=1` should be okay too.
 
-DKIM signing key: \
-open `/etc/dkimkeys/opendkim.txt` and copy the p= value
+DKIM signing key:
+`cat /etc/dkimkeys/opendkim.txt`, copy the `p=` parameter value
 (it may be split into multiple quoted strings, copy all of that)
 ```
 opendkim._domainkey.chat.example.com.  TXT  "v=DKIM1;k=rsa;p=ABcd123...;s=email;t=s"
@@ -1060,15 +1060,14 @@ Instruct mail servers to reject messages without a signature:
 _adsp._domainkey.chat.example.com.     TXT  "dkim=discardable"
 ```
 
-SPF record means that e-mail from this domain must be received only from
-an address specified in the A record, DMARC tells to reject mail on
-SPF or DKIM verification failure
+Configure SPF to soft-fail if sender's IP address doesn't match the A record,
+and setup DMARC policy to reject mail when SPF and DKIM checks with strict host matching are failed
 ```
 chat.example.com.           TXT    "v=spf1 a ~all"
 _dmarc.chat.example.com.    TXT    "v=DMARC1;p=reject;adkim=s;aspf=s"
 ```
 
-SRV records help clients to determine host and port of mail services
+Add SRV records that help clients to find host and port for smtp(s)/imap(s)
 ```
 _submission._tcp.chat.example.com.   SRV  0  1  587  chat.example.com.
 _submissions._tcp.chat.example.com.  SRV  0  1  465  chat.example.com.
