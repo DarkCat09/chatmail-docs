@@ -196,9 +196,16 @@ doas apk add opendkim@chatmail opendkim-libs@chatmail opendkim-utils@chatmail
 doas apk add dnssec-root
 doas apk add postfix
 ```
+Enable the init.d service:
+```shell
+doas rc-update add opendkim
+```
 
-`doas vim /etc/opendkim/opendkim.conf` \
-Put this config replacing a domain (in one line marked with `<--`)
+### Main config
+```shell
+doas vim /etc/opendkim/opendkim.conf
+```
+Put the contents replacing a domain (in one line marked with `<--`)
 ```
 Syslog yes
 SyslogSuccess yes
@@ -233,6 +240,7 @@ MTA ORIGINATING
 InternalHosts -
 ```
 
+### Lua handlers
 Now, upload Lua scripts from the chatmail git repo on your PC:
 ```shell
 cd relay
@@ -244,18 +252,24 @@ On the server:
 doas chown root: *.lua
 doas mv screen.lua final.lua /etc/opendkim/
 ```
+
+### Key configs
 ```shell
 doas mkdir /etc/dkimkeys
 ```
 
-`doas vim /etc/dkimkeys/KeyTable` \
+```shell
+doas vim /etc/dkimkeys/KeyTable
+```
 Put this line adjusting a domain 2 times:
 ```
 opendkim._domainkey.chat.example.com chat.example.com:opendkim:/etc/dkimkeys/opendkim.private
 ```
 
-`doas vim /etc/dkimkeys/SigningTable` \
-Put this line adjusting a domain, again 2 times:
+```shell
+doas vim /etc/dkimkeys/SigningTable
+```
+Put this line adjusting a domain, 2 times again:
 ```
 *@chat.example.com opendkim._domainkey.chat.example.com
 ```
@@ -267,31 +281,31 @@ doas chown -R opendkim: /etc/dkimkeys
 doas chmod 750 /etc/opendkim /etc/dkimkeys
 ```
 
+### New signing key
 Generate a new DKIM key for your mail server (replace domain)
 ```shell
 doas -u opendkim opendkim-genkey -D /etc/dkimkeys -d chat.example.com -s opendkim
 ```
 
-And create a directory for OpenDKIM's unix socket, with which Postfix will be communicating:
+### Postfix integration
+Create a directory for OpenDKIM's unix socket, with which Postfix will be communicating:
 ```shell
 doas mkdir /var/spool/postfix/opendkim
 doas chown opendkim: /var/spool/postfix/opendkim
 doas chmod 750 /var/spool/postfix/opendkim
 ```
 
-Enable the init.d service:
-```shell
-doas rc-update add opendkim
-```
-
 ## Dovecot
-The custom APK repo contains Dovecot 2.3.21.1 (in 2.4 they completely broke the config format compatibility)
+The custom APK repo contains Dovecot 2.3.21.1 (because in 2.4 they completely broke the config format compatibility)
 built with a [simple patch for better performance](https://github.com/chatmail/dovecot/blob/master/debian/patches/remove-500ms-idle-debounce.patch)
 ```shell
 doas apk add dovecot@chatmail dovecot-openrc@chatmail dovecot-lmtpd@chatmail dovecot-lua@chatmail
 ```
 
-`doas vim /etc/dovecot/dovecot.conf` \
+### Main config
+```shell
+doas vim /etc/dovecot/dovecot.conf
+```
 Put the contents replacing a domain (in 2 lines), adjusting TLS certs location and mailbox quotas
 ```
 protocols = imap lmtp
@@ -482,7 +496,10 @@ service imap-hibernate {
 }
 ```
 
-`doas vim /etc/dovecot/dh.pem` \
+### OpenSSL DH parameters
+```shell
+doas vim /etc/dovecot/dh.pem
+```
 Copy the contents below, or [from Debian package](https://salsa.debian.org/debian/dovecot/-/blob/ffffbace9e/debian/dh.pem),
 or alternatively, generate dhparams on your PC with `openssl dhparam 4096 >dh.pem` (takes some time)
 ```
@@ -501,7 +518,8 @@ eEzshgR6e3LDFUB1QRC1Xg1ZGq2SwL2l+lqsJMSMnKH8jO8WBTjujS8CAQICAgFF
 -----END DH PARAMETERS-----
 ```
 
-Upload Lua scripts from the cloned chatmail/relay repo:
+### chatmaild integration
+Upload some more configs:
 ```shell
 cd relay
 scp -P 8022 \
@@ -516,31 +534,42 @@ doas chown root: auth.conf push_notification.lua
 doas mv auth.conf push_notification.lua /etc/dovecot
 ```
 
+### sysctl
 Since we may need to handle many connections, let's adjust the limits:
-
 ```shell
 doas sysctl -w fs.inotify.max_user_instances=65535
 doas sysctl -w fs.inotify.max_user_watches=65535
 ```
-
-`doas vim /etc/sysctl.d/inotify.conf`
+```shell
+doas vim /etc/sysctl.d/inotify.conf
+```
 ```ini
 fs.inotify.max_user_instances = 65535
 fs.inotify.max_user_watches = 65535
 ```
 
-`doas vim /etc/conf.d/dovecot`
+### ulimit -n
+With the same purpose:
+```shell
+doas vim /etc/conf.d/dovecot
+```
 ```shell
 rc_ulimit="-n 20000"
 ```
 
+### Add to autostart
 Enable OpenRC services for Dovecot and related chatmaild scripts:
 ```shell
 for svc in dovecot doveauth chatmail-metadata lastlogin; do doas rc-update add "$svc"; done
 ```
 
 ## Postfix
-`doas vim /etc/postfix/main.cf` \
+(already installed in OpenDKIM section)
+
+### main.cf
+```shell
+doas vim /etc/postfix/main.cf
+```
 Put the config replacing a domain (3 times), adjusting TLS certs location and message size quota
 ```
 compatibility_level = 3.6
@@ -603,7 +632,10 @@ smtpd_sender_login_maps = regexp:/etc/postfix/login_map
 smtpd_peername_lookup = no
 ```
 
-`doas vim /etc/postfix/master.cf` \
+### master.cf
+```shell
+doas vim /etc/postfix/master.cf
+```
 Just copy the config (unless you had to change filtermail ports in chatmail.ini for some weird reason &mbsp; in that case change them respectively in 5 lines)
 ```
 # ==========================================================================
@@ -702,7 +734,8 @@ authclean unix  n       -       -       -       0       cleanup
   -o header_checks=regexp:/etc/postfix/submission_header_cleanup
 ```
 
-Upload some more configs:
+### Additional configs
+Upload from git repo:
 ```shell
 cd relay
 scp -P 8022 \
@@ -715,6 +748,8 @@ cd ..
 doas chown root: submission_header_cleanup login_map
 doas mv submission_header_cleanup login_map /etc/postfix/
 ```
+
+### Finalize installation
 Generate an alias database:
 ```shell
 doas newaliases
@@ -729,6 +764,7 @@ doas mkdir -p /var/spool/postfix/etc
 doas cp /etc/resolv.conf /var/spool/postfix/etc
 ```
 
+### Add to autostart
 Enable OpenRC services &mdash; Postfix and chatmaild filtermail scripts:
 ```shell
 for svc in postfix filtermail filtermail-incoming; do doas rc-update add "$svc"; done
@@ -740,9 +776,11 @@ Install nginx web server and `stream` module
 doas apk add nginx nginx-mod-stream
 ```
 
-`doas vim /etc/nginx/nginx.conf` \
-Put the contents replacing a domain (in 5 lines) and adjusting TLS certs location,
-leaving TLS disabled for now until we setup certbot
+```shell
+doas vim /etc/nginx/nginx.conf
+```
+Put the contents replacing a domain (in 5 lines) and adjusting TLS certs location
+leaving TLS disabled for now, until we setup certbot
 ```
 load_module modules/ngx_stream_module.so;
 
@@ -866,8 +904,11 @@ Request certificates via http-01 challenge:
 doas /opt/certbot/bin/certbot certonly --nginx
 ```
 
-`doas vim /etc/nginx/nginx.conf` \
-* ensure that TLS certs location is correct
+### Setup TLS in nginx
+```shell
+doas vim /etc/nginx/nginx.conf
+```
+* ensure that TLS cert paths are correct
 * uncomment them (find 1 comment: `# UNCOMMENT AFTER SETTING UP CERTBOT`)
 * enable serving over TLS by adding `ssl` option to `listen` on 8443 (find 2 comments: `# REPLACE AFTER SETTING UP CERTBOT`)
 
@@ -877,6 +918,7 @@ doas service nginx checkconfig
 doas service nginx restart
 ```
 
+### Setup renewal in cron
 Also, don't forget that TLS certs should be automatically renewed.
 Let's ask certbot to check them, and renew if needed, every day at 01:02
 ```shell
@@ -886,8 +928,11 @@ cat cron.bkp cron.add | doas crontab -
 rm cron.bkp cron.add
 ```
 
+### Setup deploy hook
 When certs are updated, programs which use TLS should re-read them, so we setup a deploy hook:
-`doas vim /etc/letsencrypt/renewal-hooks/deploy/reload.sh`
+```shell
+doas vim /etc/letsencrypt/renewal-hooks/deploy/reload.sh
+```
 ```shell
 #!/bin/sh -eu
 for svc in nginx postfix dovecot; do
@@ -939,6 +984,7 @@ In case you're building some custom registration system (why??),
 you may want to generate links/QRs like `dclogin:username@chat.example.com/?p=password&v=1`
 
 ## .well-known routes
+### mta-sts.txt
 ```shell
 doas mkdir -p /var/www/html/.well-known
 doas vim /var/www/html/.well-known/mta-sts.txt
@@ -951,6 +997,7 @@ mx: chat.example.com
 max_age: 2419200
 ```
 
+### autoconfig
 ```shell
 doas mkdir -p /var/www/html/.well-known/autoconfig/mail
 doas vim /var/www/html/.well-known/autoconfig/mail/config-v1.1.xml
