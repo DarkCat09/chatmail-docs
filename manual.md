@@ -22,7 +22,7 @@ doas apk add python3 py3-virtualenv
 doas python3 -m venv /opt/chatmaild
 ```
 
-Let's use a separate directory for files we copy to the server during the installation:
+We'll use a separate directory for files we copy to the server during the installation:
 ```shell
 mkdir ~/cm
 cd ~/cm
@@ -912,7 +912,7 @@ doas vim /etc/nginx/nginx.conf
 * uncomment them (find 1 comment: `# UNCOMMENT AFTER SETTING UP CERTBOT`)
 * enable serving over TLS by adding `ssl` option to `listen` on 8443 (find 2 comments: `# REPLACE AFTER SETTING UP CERTBOT`)
 
-Let's validate the modified config and restart nginx:
+Validate the modified config and restart nginx:
 ```shell
 doas service nginx checkconfig
 doas service nginx restart
