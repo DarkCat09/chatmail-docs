@@ -1088,14 +1088,14 @@ where 10 is a priority value:
 chat.example.com.           MX     10  chat.example.com.
 ```
 
-Enable MTA-STS policy:
+### MTA-STS policy
 ```dns
 _mta-sts.chat.example.com.  TXT    "v=STSv1; id=202512311957"
 ```
-`id` parameter should represent the last time when the policy was modified.
+`id` parameter should represent the last time when the policy was modified. \
 cmdeploy generates it as `$(date +%Y%m%d%H%M)`, but `id=1` should be okay too.
 
-DKIM signing key:
+### DKIM key
 `cat /etc/dkimkeys/opendkim.txt`, copy the `p=` parameter value
 (it may be split into multiple quoted strings, copy all of that)
 ```dns
@@ -1107,13 +1107,15 @@ Instruct mail servers to reject messages without a signature:
 _adsp._domainkey.chat.example.com.     TXT  "dkim=discardable"
 ```
 
-Configure SPF to soft-fail if sender's IP address doesn't match the A record,
-and setup DMARC policy to reject mail when SPF and DKIM checks with strict host matching are failed
+### SPF/DMARC
+* configure SPF to soft-fail if sender's IP address doesn't match the A record
+* setup DMARC policy to reject mail when SPF and DKIM checks with strict host matching are failed
 ```dns
 chat.example.com.           TXT    "v=spf1 a ~all"
 _dmarc.chat.example.com.    TXT    "v=DMARC1;p=reject;adkim=s;aspf=s"
 ```
 
+### Service records
 Add SRV records that help clients to find host and port for smtp(s)/imap(s)
 ```dns
 _submission._tcp.chat.example.com.   SRV  0  1  587  chat.example.com.
