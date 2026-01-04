@@ -15,12 +15,6 @@ doas adduser -h /home/vmail -s /bin/false -G vmail -S -D -u 501 vmail
 doas -u vmail mkdir -p /home/vmail/mail/chat.example.com  # replace with your domain
 ```
 
-## User for iroh relay
-```shell
-doas addgroup -S iroh
-doas adduser -s /bin/false -G iroh -S -D -H iroh
-```
-
 ## chatmaild
 Create a new virtualenv:
 ```shell
@@ -138,30 +132,44 @@ doas chmod 755 iroh-relay
 doas mv iroh-relay /usr/local/bin/
 doas rc-update add iroh-relay
 ```
-
-## chatmaild and iroh configs
-On your PC, install cmdeploy into a virtualenv, generate a chatmaild config and adjust it, then upload it
-(with an iroh config, since we already installed it so why not configure it now)
+And we need a separate user for iroh:
+```shell
+doas addgroup -S iroh
+doas adduser -s /bin/false -G iroh -S -D -H iroh
+```
+And a config file, upload it from the chatmail relay git repo:
 ```shell
 cd relay
+scp -P 8022 ./cmdeploy/src/cmdeploy/iroh-relay.toml user@chat.example.com:/home/user/cm
+cd ..
+```
+```shell
+doas chown root: iroh-relay.toml
+doas mv iroh-relay.toml /etc/
+```
+
+## chatmaild main config
+On your PC, install cmdeploy into a virtualenv, generate a chatmaild config, adjust and upload it:
+```shell
+cd relay
+
 python -m venv venv
 venv/bin/pip install -e ./chatmaild -e ./cmdeploy
+
 venv/bin/cmdeploy init chat.example.com
 vim chatmail.ini  # use any preferred editor
 # not all parameters make sense since we're doing a manual install
-scp -P 8022 \
-  ./chatmail.ini \
-  ./cmdeploy/src/cmdeploy/iroh-relay.toml \
-  user@chat.example.com:/home/user/cm
+
+scp -P 8022 ./chatmail.ini user@chat.example.com:/home/user/cm
 cd ..
 ```
 Let's get back to the server:
 ```shell
 # mailname config (replace the domain!)
 echo 'chat.example.com' | doas tee /etc/mailname
-# chatmaild and iroh
-doas chown root: chatmail.ini iroh-relay.toml
-doas mv chatmail.ini iroh-relay.toml /etc/
+# chatmail.ini
+doas chown root: chatmail.ini
+doas mv chatmail.ini /etc/
 ```
 
 ## Custom APK repo
